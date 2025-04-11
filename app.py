@@ -24,7 +24,9 @@ llama_cloud_api_key = st.secrets["api_keys"]["LLAMA_CLOUD_API_KEY"]
 tavily_search_tool_key = st.secrets["api_keys"]["tavily_search_tool_KEY"]
 
 
-
+if not tavily_search_tool_key:
+    st.error("❌ Tavily API key is missing. Please set it in Streamlit secrets.")
+    st.stop()
 
 from typing import List, Dict
 
