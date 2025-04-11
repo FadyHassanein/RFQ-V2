@@ -4,7 +4,7 @@ import gc
 import tempfile
 import uuid
 
-from IPython.display import Markdown, display
+#from IPython.display import Markdown, display
 
 from llama_index.core import Settings
 from llama_index.llms.openai import OpenAI
