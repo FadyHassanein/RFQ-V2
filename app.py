@@ -236,7 +236,7 @@ with st.sidebar:
                     # docs = loader.load_data()
 
                     # setup llm & embedding model
-                    llm=OpenAI(model="gpt-4o", temperature=0.1)
+                    llm = OpenAI(model="gpt-4o", temperature=0.1, api_key=openai_api_key)
                     ## Define the Agent
                     prompt_model= prompt_model.format(context_str= documents)
                     # rag_agent= FunctionAgent(
