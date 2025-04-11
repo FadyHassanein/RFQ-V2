@@ -54,7 +54,8 @@ search_online_tool= FunctionTool.from_defaults(
 
 parser = LlamaParse(
     result_type="markdown",  # "markdown" and "text" are available,
-    continuous_mode= True
+    continuous_mode= True,
+    api_key= llama_cloud_api_key,
 )
 
 
