@@ -21,7 +21,7 @@ from llama_index.agent.openai import OpenAIAgent
 
 openai_api_key = st.secrets["api_keys"]["OPENAI_API_KEY"]
 llama_cloud_api_key = st.secrets["api_keys"]["LLAMA_CLOUD_API_KEY"]
-tavily_search_tool_key = st.secrets["api_keys"]["tavily_search_tool_KEY"]
+tavily_search_tool_key = st.secrets["api_keys"]["TAVILY_API_KEY"]
 
 
 if not tavily_search_tool_key:
