@@ -189,7 +189,7 @@ with st.sidebar:
 
                 # Inform the user that the file is processed and Display the PDF uploaded
                 st.success("Ready to Chat!")
-                display_pdf(uploaded_file)
+                #display_pdf(uploaded_file)
         except Exception as e:
             st.error(f"An error occurred: {e}")
             st.stop()     
