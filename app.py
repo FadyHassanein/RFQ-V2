@@ -174,7 +174,9 @@ with st.sidebar:
 
                     if os.path.exists(temp_dir):
                         st.write(f"./{uploaded_file.name}")
-                        loader = PyMuPDF4LLMLoader(file_path=f"./{uploaded_file.name}")
+                        #loader = PyMuPDF4LLMLoader(file_path=f"./{uploaded_file.name}")
+                        loader = PyMuPDF4LLMLoader(file_path=file_path)
+
                         documents= loader.load()
                         st.session_state.documents = documents[0].page_content
                     else:    
