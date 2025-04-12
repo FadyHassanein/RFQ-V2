@@ -1,10 +1,14 @@
 streamlit==1.37.1
-llama-index==0.12.22
-llama-index-core==0.12.22
-llama-index-llms-openai==0.3.26
-llama-index-readers-file==0.4.6
-llama-cloud-services
-llama-index-tools-tavily-research
-llama-hub 
-tavily-python
-gunicorn
+# llama-index==0.12.22
+# llama-index-core==0.12.22
+# llama-index-llms-openai==0.3.26
+# llama-index-readers-file==0.4.6
+# llama-cloud-services
+# llama-index-tools-tavily-research
+# llama-hub 
+# llama-index-tools-google
+openai==1.68.2
+langchain
+langchain_community 
+langchain-pymupdf4llm
+numpy==2.1.1

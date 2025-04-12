@@ -3,70 +3,31 @@ import base64
 import gc
 import tempfile
 import uuid
+import numpy as np  # Added numpy import
 
-#from IPython.display import Markdown, display
+# Debug: Print numpy version to help diagnose incompatibility issues
+print("Numpy version:", np.__version__)
+# Optionally, add a runtime check/informative message within the app
 import streamlit as st
-from llama_index.core import Settings
-from llama_index.llms.openai import OpenAI
-from llama_index.core import SimpleDirectoryReader
-from llama_cloud_services import LlamaParse
+if np.__version__ < "1.23":
+    st.warning("It is recommended to upgrade numpy (pip install --upgrade numpy) to avoid binary incompatibility issues.")
 
-# from llama_index.core.agent.workflow import FunctionAgent
-from llama_index.core.tools import FunctionTool
-from llama_index.tools.tavily_research.base import TavilyToolSpec
-from llama_index.agent.openai import OpenAIAgent
+# from IPython.display import Markdown, display
 
-
+# from llama_index.core import Settings
+# from llama_index.llms.openai import OpenAI
+# from llama_index.core import SimpleDirectoryReader
+# from llama_cloud_services import LlamaParse
 
 
-openai_api_key = st.secrets["api_keys"]["OPENAI_API_KEY"]
-llama_cloud_api_key = st.secrets["api_keys"]["LLAMA_CLOUD_API_KEY"]
-tavily_search_tool_key = st.secrets["api_keys"]["TAVILY_API_KEY"]
-#openai_api_key = os.environ.get("OPENAI_API_KEY")
-#llama_cloud_api_key = os.environ.get("LLAMA_CLOUD_API_KEY")
-#tavily_search_tool_key = os.environ.get("TAVILY_API_KEY")
-if not tavily_search_tool_key:
-    st.error("❌ Tavily API key is missing. Please set it in Streamlit secrets.")
-    st.stop()
-
-from typing import List, Dict
-
-def search_online(query: str) -> List[Dict[str, str]]:
-    """
-    Useful tool to search for information online.
-    
-    Parameters:
-        query (str): The search query to be used.
-    
-    Returns:
-        List[Dict[str, str]]: A list of dictionaries, each containing 'text' and 'source' keys.
-    """
-    documents = tavily_search_tool.search(query)
-    extracted_data = []
-    
-    for doc in documents:
-        url = doc.metadata.get('url', 'Unknown source')
-        text = doc.text_resource.text if doc.text_resource and doc.text_resource.text else 'No text available'
-        extracted_data.append({"text": text, "source": url})
-    
-    return extracted_data
-
-search_online_tool= FunctionTool.from_defaults(
-    fn= search_online,
-)
-
-parser = LlamaParse(
-    result_type="markdown",  # "markdown" and "text" are available,
-    continuous_mode= True,
-    api_key= llama_cloud_api_key,
-)
+from openai import OpenAI
+from langchain_pymupdf4llm import PyMuPDF4LLMLoader
 
 
-# use SimpleDirectoryReader to parse our file
-file_extractor = {".pdf": parser}
+openai_api_key= st.secrets["api_keys"]["OPENAI_API_KEY"]
 
+openai_client= OpenAI(api_key=openai_api_key)
 
-import streamlit as st
 
 if "id" not in st.session_state:
     st.session_state.id = uuid.uuid4()
@@ -75,111 +36,97 @@ if "id" not in st.session_state:
 session_id = st.session_state.id
 client = None
 
-prompt_model="""# Expert AI Response Prompt
 
-## Overview
-This prompt is designed to guide an AI model to provide professional, structured responses to user queries with consistent formatting, comprehensive information extraction, and appropriate elaboration when needed.
 
-## Core Principles
-1. **Structured Information Extraction**: Extract and organize all relevant information clearly
-2. **Complete Response**: Ensure no important details are omitted
-3. **Professional Formatting**: Present information in organized lists, tables, or paragraphs as appropriate
-4. **Proactive Assistance**: Anticipate missing information and provide it when possible
-5. **Adaptability**: Adjust responses based on follow-up queries
-6. **Accurate Source Referencing**: Cite information sources when required
+new_prompt="""# Information Processing & Response Guide
 
-## Response Framework
-When responding to user queries, follow this structure:
+## Core Instructions
+- Extract information from {context_str} ONLY - no hallucination
+- Structure responses clearly with appropriate formatting
+- Use web_search_preview when context is insufficient or when requested
 
-### Initial Acknowledgment
-Begin with "Responding to:" followed by a brief summary of the user's query to confirm understanding.
+## Extract & Process
+1. Analyze context thoroughly
+2. Identify key elements:
+   - Products, specs, quantities, IDs, codes
+   - Dates, deadlines, contact info
+   - Requirements, relationships
 
-### Information Organization
-Present extracted or requested information in a clearly structured format using:
-- Bulleted or numbered lists for multiple items
-- Hierarchical organization with main points and sub-points
-- Tables for comparative information
-- Paragraph form only when narrative is more appropriate
+3. Maintain precision:
+   - Exact numbers/measurements
+   - Complete identifiers
+   - Technical terminology
 
-### Formatting Guidelines
-- Use consistent formatting throughout
-- Include all relevant numeric data (quantities, model numbers, dates, etc.)
-- Group related information logically
-- Apply hierarchical organization (headers, subheaders)
-- Bold key information when appropriate
+## Format Responses
+- Use lists, hierarchies, bold text as appropriate
+- For item specifications:
+  - Main item name first
+  - Attributes as sub-points
+  - Include all identifiers/quantities
+  - Preserve original units
 
-### Additional Guidance
-- If the user points out missing information, acknowledge the oversight and provide the complete information
-- When asked to provide sources, include URLs and pricing information when available
-- Add relevant context or explanations for technical terms
-- Maintain a professional, concise tone throughout
+## Web Search Guidelines
+When needed:
+- Use `web_search_preview` tool
+- Create focused queries with key terms
+- Include manufacturer, model numbers for products
+- Present results with URLs, prices when available
+- Cite sources properly
+- Avoid valuetronics website links
 
-## Example Response Structure
+## Response Types
 
-Responding to: [Brief summary of query]
+### Information Extraction Format
+```
+[Document Type/Source] from [Entity]
 
-[Main information category]:
-1. [Item/Point 1]
-   o [Detail 1]
-   o [Detail 2]
-   o [Detail 3]
-2. [Item/Point 2]
-   o [Detail 1]
-   o [Detail 2]
+Items/Elements:
+1. [Item/Category Name]
+   o Qty/Amount: [Quantity] [Unit]
+   o Description: [Detailed description]
+   o [Attribute Label]: [Attribute Value]
+   o [Identifier Type]: [Identifier Value]
+   o [Additional Specification]: [Value]
+   o [NAICS Number]: [Value]
+   o [Other Identifiers]: [Value]
 
-Additional Information:
-- [Relevant context or explanations]
-- [Important dates or requirements]
 
-## Specific Response Types
+2. [Item Name]
+   o [Similar structure]
 
-### Information Extraction Tasks
-For extracting information from documents:
-- Identify and list all key data points
-- Organize by categories (products, specifications, requirements)
-- Include all numeric identifiers and codes
-- Add metadata (dates, deadlines, contact information)
+Additional Requirements/Information:
+• [Requirement Type]: [Requirement Details]
+• [Deadline Type]: [Deadline Details]
+• [Other Important Information]
+```
 
-### Source/Reference Requests
-When providing references or sources:
-- Include direct URLs when available
-- List pricing information if requested
-- Note any limitations about the sources
-- Provide brief descriptions of each source
+### For Term Explanations
+```
+[Term] is [definition]. In this context, it [usage].
+```
 
-## Using Search Tool
-When the user asks you to search for information or when you need external data:
-1. **Identify Search Requests**: Recognize when the user is asking for information that requires searching the web
-   - Direct requests like "search for...", "find information about...", "what's the latest on..."
-   - Questions about current events, statistics, or facts not likely to be in the document
-   - Requests for comparative information from external sources
+### Web Search Format
+```
+Here are [number] sources where you can find information about [search topic]:
 
-2. **Search Tool Usage**:
-   - Use the `search_online_tool` tool to find relevant information
-   - Construct concise, specific search queries focusing on key terms
-   - When needed, perform multiple searches to gather comprehensive information
+[Source Name]: [URL]
+o [Key Information Point]: [Details]
+o [Price/Value if applicable]: [Price]
 
-3. **Search Results Processing**:
-   - Synthesize information from search results
-   - Format findings according to the response framework
-   - Clearly indicate when information comes from external searches vs. document content
-   - Include relevant URLs or sources from search results
+[Source Name]: [URL]
+o [Key Information Point]: [Details]
+o [Price/Value if applicable]: [Price]
 
-4. **Citation Requirements**:
-   - The search tool will return text results along with their source references
-   - You MUST cite ALL sources used in your response
-   - Include citation numbers [1], [2], etc. within your response when referencing information
-   - At the end of your response, include a "References" section listing all sources in order
-   - Format references as: [#] URL - Brief description of source
-   - Example: [1] https://example.com - Article on Egyptian archaeology from National Geographic
+[Additional context or caveats about the information]
 
-5. **Example Search Scenarios**:
-   - User asks: "Search for recent developments in Egyptian archaeology"
-   - User requests: "Find information about tourism statistics in Egypt"
-   - User inquires: "What are the latest preservation techniques for ancient artifacts?"
+References:
+[1] [URL] - [Brief description of source]
+[2] [URL] - [Brief description of source]
+```
+<Important>For your search do not include link from: valuetronics 
 
-Below is the scraped content of a PDF file.
-<details>\n\n{context_str}\n\n</details>\n\n
+<user_query>{user_question}</user_query>
+Your response:
 """
 
 
@@ -220,60 +167,23 @@ with st.sidebar:
                     f.write(uploaded_file.getvalue())
                 
                 file_key = f"{session_id}-{uploaded_file.name}"
+                st.write(f"File uploaded: {uploaded_file.name}")
                 st.write("Indexing your document...")
 
                 if file_key not in st.session_state.get('file_cache', {}):
 
                     if os.path.exists(temp_dir):
-                        documents = SimpleDirectoryReader(input_dir= temp_dir, file_extractor=file_extractor, required_exts=[".pdf"], recursive= True).load_data()
-
-                            # loader = SimpleDirectoryReader(
-                            #     input_dir = temp_dir,
-                            #     required_exts=[".pdf"],
-                            #     recursive=True
-                            # )
+                        st.write(f"./{uploaded_file.name}")
+                        loader = PyMuPDF4LLMLoader(file_path=f"./{uploaded_file.name}")
+                        documents= loader.load()
+                        st.session_state.documents = documents[0].page_content
                     else:    
                         st.error('Could not find the file you uploaded, please check again...')
                         st.stop()
                     
-                    # docs = loader.load_data()
-
-                    # setup llm & embedding model
-                    llm = OpenAI(model="gpt-4o", temperature=0.1, api_key=openai_api_key)
-                    ## Define the Agent
-                    prompt_model= prompt_model.format(context_str= documents)
-                    # rag_agent= FunctionAgent(
-                    #     llm= llm,
-                    #     tool= [tavily_search_tool.to_tool_list()],
-                    #     system_prompt= prompt_model,
-                    #     streaming_response= True,
-                    # )
-                    # Creating an index over loaded data
-                    # index = VectorStoreIndex.from_documents(documents=documents, show_progress=True)
-
-                    Settings.llm = llm
-                    # query_engine = index.as_query_engine(streaming=True)
-
-                    rag_agent= OpenAIAgent.from_tools(
-                        llm= llm,
-                        tools= [search_online_tool],
-                        system_prompt= prompt_model,
-                        streaming_response= True,
-                    )
-
-                    # ====== Customise prompt template ======
-                    # qa_prompt_tmpl_str = prompt_model
-                    # qa_prompt_tmpl = PromptTemplate(qa_prompt_tmpl_str)
-
-                    # query_engine.update_prompts(
-                    #     {"response_synthesizer:text_qa_template": qa_prompt_tmpl}
-                    # )
-                    
-                    # st.session_state.file_cache[file_key] = query_engine
-                    st.session_state.file_cache[file_key] = rag_agent
+                    st.session_state.file_cache[file_key] = openai_client
                 else:
-                    # query_engine = st.session_state.file_cache[file_key]
-                    rag_agent= st.session_state.file_cache[file_key]
+                    openai_client= st.session_state.file_cache[file_key]
 
                 # Inform the user that the file is processed and Display the PDF uploaded
                 st.success("Ready to Chat!")
@@ -316,17 +226,22 @@ if prompt := st.chat_input("What's up?"):
         
         # Simulate stream of response with milliseconds delay
         print("prompt:\n", prompt)
-        # streaming_response = query_engine.query(prompt)
-        streaming_response= rag_agent.chat(prompt)
+        print("context:\n", st.session_state.documents)
+        prompt_model= new_prompt.format(
+            context_str= st.session_state.documents,
+            user_question= prompt,
+        )
+        streaming_response= openai_client.responses.create(
+            model="gpt-4o",
+            tools=[{'type': 'web_search_preview'}],
+            input= prompt_model,
+            )
         
-        for chunk in streaming_response.response:
+        for chunk in streaming_response.output_text:
             full_response += chunk
             message_placeholder.markdown(full_response + "▌")
 
-        # full_response = query_engine.query(prompt)
-
         message_placeholder.markdown(full_response)
-        # st.session_state.context = ctx
 
     # Add assistant response to chat history
     st.session_state.messages.append({"role": "assistant", "content": full_response})
